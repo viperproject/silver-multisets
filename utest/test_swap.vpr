@@ -1,0 +1,161 @@
+import "../mset.vpr"
+
+
+field val: Bool
+
+domain Array {
+    function loc(a: Array, i: Int): Ref
+    function length(a: Array): Int
+
+    axiom array_length {
+      forall a: Array :: { length(a) } length(a) >= 0
+    }
+
+    /* Currently, injectivity is assumed automatically when inhaling permissions through quantifiers. 
+    axiom array_injectivity {
+      true  
+      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } 0 <= i && i < j && j < length(a) ==> loc(a,i) != loc(a,j) )
+      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } loc(a,i) == loc(a,j) <==> i == j )
+    }*/
+}
+
+function a2s(a: Array): Seq[Int]
+  requires forall i: Int :: i in [0..length(a)) ==> acc(loc(a,i).val)
+  ensures |result| == length(a)
+  ensures  forall i: Int :: { loc(a,i).val } { result[i] } i in [0..length(a)) ==> result[i] == (loc(a,i).val ? 1 : 0)
+
+method swap(a: Array, i: Int, j: Int)
+  requires acc(loc(a,i).val) && acc(loc(a,j).val)
+  ensures  acc(loc(a,i).val) && acc(loc(a,j).val)
+  ensures loc(a,i).val == old(loc(a,j).val)
+  ensures loc(a,j).val == old(loc(a,i).val)  
+{
+  var temp: Bool := loc(a,i).val
+  loc(a,i).val := loc(a,j).val
+  loc(a,j).val := temp
+}
+
+method swap_test(a: Array, i: Int, j: Int)
+    requires 0 <= i && i < j && j < length(a)
+    requires forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+    ensures  forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+    ensures MultiSet_Equal( MultiSet_FromSeq(a2s(a)), old(MultiSet_FromSeq(a2s(a))) ) 
+{
+    var sx: Seq[Int] := a2s(a)
+    var sy: Seq[Int]
+    var sz: Seq[Int]
+    //var sz_partial: Seq[Int]
+    //var x: MultiSet := MultiSet_FromSeq(sx)
+    //var y: MultiSet
+
+    swap(a, i, j)
+
+    sy := a2s(a)
+    //y := MultiSet_FromSeq(sy)
+
+    sz := sx [j := sx[i]] [i := sx[j]]
+    //sz_partial := sx [j := sx[i]]
+
+    /*
+    assert forall z: Int :: z in [0..length(a)) ==> 
+      (z < i ==> sx[z] == sy[z]) && (sx[i] == sy[j]) && 
+      (i < z && z < j ==> sx[z] == sy[z]) &&
+      (sx[j] == sy[i]) && 
+      (j < z ==> sx[z] == sy[z])*/
+
+    assert forall z: Int :: z in [0..length(a)) ==> sz[z] == sy[z]
+      
+    assert sz == sy
+
+    /*
+    assert 
+        //{ _(MultiSet_FromSeq(sz_partial[i := v    ]),x) }
+        //                                i    sx[j]
+        forall o: Int :: 
+            _(MultiSet_FromSeq(sz_partial[i := sx[j]]), 
+            o) == 
+            _(MultiSet_Union( 
+                MultiSet_Difference( MultiSet_FromSeq(sz_partial), MultiSet_Singleton(sz_partial[i]) ), 
+                MultiSet_Singleton(sx[j]) ),
+            o)
+
+
+    assert 
+        //{ _(MultiSet_FromSeq(sz_partial[i := v    ]),x) }
+        //                                j    sx[i]
+        forall o: Int :: 
+            _(MultiSet_FromSeq(sx[j := sx[i]]), 
+            o) == 
+            _(MultiSet_Union( 
+                MultiSet_Difference( MultiSet_FromSeq(sx), MultiSet_Singleton(sx[j]) ), 
+                MultiSet_Singleton(sx[i]) ),
+            o)
+
+    assert MultiSet_Equal( 
+        MultiSet_FromSeq(sz_partial[i := sx[j]]),
+        MultiSet_FromSeq(sy))
+
+    assert forall o: Int :: 
+            _(MultiSet_FromSeq(sx[j := sx[i]]), o) 
+            == 
+            _( MultiSet_Difference( MultiSet_FromSeq(sx), MultiSet_Singleton(sx[j]) ), o) 
+            + 
+            _( MultiSet_Singleton(sx[i]), o)
+
+    assert forall o: Int :: 
+            _(MultiSet_FromSeq(sx[j := sx[i]]), o) 
+            == 
+            //_( MultiSet_Difference( MultiSet_FromSeq(sx), MultiSet_Singleton(sx[j]) ), o)
+            Math_Clip(_(MultiSet_FromSeq(sx),o) - _(MultiSet_Singleton(sx[j]),o)) 
+            + 
+            _( MultiSet_Singleton(sx[i]), o)
+
+    assert forall o: Int :: 
+            _(MultiSet_FromSeq(sx[j := sx[i]][i := sx[j]]), o) 
+            == 
+            Math_Clip(_(MultiSet_FromSeq(sx[j := sx[i]]),o) - _(MultiSet_Singleton(sx[j := sx[i]][i]),o)) 
+            + 
+            _( MultiSet_Singleton(sx[j]), o)
+
+    assert forall o: Int :: 
+            _(MultiSet_FromSeq(sx[j := sx[i]][i := sx[j]]), o) 
+            == 
+            Math_Clip(_(MultiSet_FromSeq(sx[j := sx[i]]),o) - _(MultiSet_Singleton(sx[i]),o)) 
+            + 
+            _( MultiSet_Singleton(sx[j]), o)
+            
+    assert forall o: Int :: 
+            _(MultiSet_FromSeq(sx[j := sx[i]][i := sx[j]]), o) 
+            == 
+            Math_Clip( 
+                ( Math_Clip(_(MultiSet_FromSeq(sx),o) - _(MultiSet_Singleton(sx[j]),o)) 
+                + _( MultiSet_Singleton(sx[i]), o) ) 
+                - _(MultiSet_Singleton(sx[i]),o)) 
+            + 
+            _( MultiSet_Singleton(sx[j]), o)    
+
+    assert forall o: Int :: o != sx[i] && o != sx[j] ==>
+            _(MultiSet_FromSeq(sx[j := sx[i]][i := sx[j]]), o) 
+            == 
+            _(MultiSet_FromSeq(sx), o) 
+
+    assert forall o: Int :: o == sx[i] ==>
+            _(MultiSet_FromSeq(sx[j := sx[i]][i := sx[j]]), o) 
+            == 
+            _(MultiSet_FromSeq(sx), o) 
+
+    assert forall o: Int :: o == sx[j] && ( _(MultiSet_FromSeq(sx), sx[j]) >= 1 ) ==>
+            _(MultiSet_FromSeq(sx[j := sx[i]][i := sx[j]]), o) 
+            == 
+            _(MultiSet_FromSeq(sx), o) 
+
+    assert forall o: Int :: o == sx[j] && ( _(MultiSet_FromSeq(sx), sx[j]) == 0 ) ==>
+            _(MultiSet_FromSeq(sx[j := sx[i]][i := sx[j]]), o) 
+            == 
+            1 //_(MultiSet_FromSeq(sx), o) 
+            */
+
+    //assert forall o: Int :: _(x,o) == _(y,o)
+    //assert MultiSet_Equal(x, y)
+    
+}

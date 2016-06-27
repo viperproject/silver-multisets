@@ -1,0 +1,94 @@
+import "../mset.vpr"
+
+
+field val: Bool
+
+domain Array {
+    function loc(a: Array, i: Int): Ref
+    function length(a: Array): Int
+
+    axiom array_length {
+      forall a: Array :: { length(a) } length(a) >= 0
+    }
+
+    /* Currently, injectivity is assumed automatically when inhaling permissions through quantifiers. 
+    axiom array_injectivity {
+      true  
+      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } 0 <= i && i < j && j < length(a) ==> loc(a,i) != loc(a,j) )
+      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } loc(a,i) == loc(a,j) <==> i == j )
+    }*/
+}
+
+function a2s(a: Array): Seq[Int]
+  requires forall i: Int :: i in [0..length(a)) ==> acc(loc(a,i).val)
+  ensures |result| == length(a)
+  ensures  forall i: Int :: { loc(a,i).val } { result[i] } i in [0..length(a)) ==> result[i] == (loc(a,i).val ? 1 : 0)
+
+
+method two_way_sort(a: Array)
+  // Works for empty arrays, too. 
+  //requires length(a) > 0
+  requires forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+  ensures  forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+
+  // The resulting array is sorted in ascending order. 
+  ensures forall y: Int, z: Int :: { loc(a,y).val, loc(a,z).val } 0 <= y && y < z && z < length(a) ==> lte(loc(a,y).val, loc(a,z).val)
+
+  // The number of false elements in the resulting state of the array is the same as in the initial state.   
+  ensures MultiSet_Equal( MultiSet_FromSeq(a2s(a)), old(MultiSet_FromSeq(a2s(a))) )
+{
+  var i: Int := 0
+  var j: Int := length(a) - 1  
+
+  var xs: Seq[Int] 
+  var ys: Seq[Int]
+  var zs: Seq[Int]
+
+  while ( i <= j )
+    invariant 0 <= i && i <= j + 1 && j < length(a)
+    invariant forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+    
+
+    // The segment [0..i) contains only false elements
+    // The segment [i..j] contains both false and true elements (invariant omitted)
+    // The segment (j..length(a)) contains only 
+    invariant forall z: Int :: { loc(a,z).val } 0 <= z && z < i ==> !loc(a,z).val
+    invariant forall z: Int :: { loc(a,z).val } j < z && z < length(a) ==> loc(a,z).val
+
+    invariant MultiSet_Equal( MultiSet_FromSeq(a2s(a)), old(MultiSet_FromSeq(a2s(a))) )
+  {
+    if ( !loc(a,i).val ) {
+      i := i+1
+    }
+    elseif ( loc(a,j).val ) {
+      j := j-1
+    }
+    else {
+      xs := a2s(a)
+      swap(a, i, j)
+      ys := a2s(a)
+      zs := xs [j := xs[i]] [i := xs[j]]
+      assert forall z: Int :: z in [0..length(a)) ==> zs[z] == ys[z]
+      assert zs == ys
+
+
+      i := i+1
+      j := j-1
+    }
+  }
+}
+
+method swap(a: Array, i: Int, j: Int)
+  requires acc(loc(a,i).val) && acc(loc(a,j).val)
+  ensures  acc(loc(a,i).val) && acc(loc(a,j).val)
+  ensures loc(a,i).val == old(loc(a,j).val)
+  ensures loc(a,j).val == old(loc(a,i).val)  
+{
+  var temp: Bool := loc(a,i).val
+  loc(a,i).val := loc(a,j).val
+  loc(a,j).val := temp
+}
+
+function lte(b1: Bool, b2: Bool): Bool {
+  !b1 || b2
+}
