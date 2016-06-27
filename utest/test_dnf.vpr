@@ -1,0 +1,101 @@
+import "../mset.vpr"
+
+
+field val: Int
+
+domain Array {
+    function loc(a: Array, i: Int): Ref
+    function length(a: Array): Int
+
+    axiom array_length {
+      forall a: Array :: { length(a) } length(a) >= 0
+    }
+
+    /* Currently, injectivity is assumed automatically when inhaling permissions through quantifiers. 
+    axiom array_injectivity {
+      true  
+      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } 0 <= i && i < j && j < length(a) ==> loc(a,i) != loc(a,j) )
+      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } loc(a,i) == loc(a,j) <==> i == j )
+    }*/
+}
+
+function a2s(a: Array): Seq[Int]
+  requires forall i: Int :: i in [0..length(a)) ==> acc(loc(a,i).val)
+  ensures |result| == length(a)
+  ensures  forall i: Int :: { loc(a,i).val } { result[i] } i in [0..length(a)) ==> result[i] == loc(a,i).val
+
+method swap(a: Array, i: Int, j: Int)
+    requires 0 <= i && i <= j && j < length(a) 
+    requires i != j ==> acc(loc(a,i).val) && acc(loc(a,j).val)
+    ensures  i != j ==> acc(loc(a,i).val) && acc(loc(a,j).val)
+    ensures i != j ==> loc(a,i).val == old(loc(a,j).val)
+    ensures i != j ==> loc(a,j).val == old(loc(a,i).val)
+{
+    var temp: Int 
+    
+    if ( i != j ) {
+        temp := loc(a,i).val
+        loc(a,i).val := loc(a,j).val
+        loc(a,j).val := temp
+    }
+}
+
+method sort012(a: Array)
+    requires length(a) > 0
+    requires forall z: Int :: z in [0..length(a)) ==> acc(loc(a,z).val)
+    requires forall z: Int :: 0 <= z && z < length(a) ==> (0 <= loc(a,z).val && loc(a,z).val <= 2)
+    
+    ensures forall z: Int :: z in [0..length(a)) ==> acc(loc(a,z).val)
+    ensures forall y: Int, z: Int :: 0 <= y && y < z && z < length(a) ==> loc(a,y).val <= loc(a,z).val
+    
+    ensures MultiSet_Equal( MultiSet_FromSeq(a2s(a)), old(MultiSet_FromSeq(a2s(a))) )
+{
+	var lo: Int := 0
+	var hi: Int := length(a) - 1
+    var mid: Int := 0
+    
+    var xs: Seq[Int] 
+    var ys: Seq[Int]
+    var zs: Seq[Int]
+
+	while (mid <= hi)
+        invariant 0 <= lo && lo <= mid && mid <= hi + 1 && hi < length(a)
+        
+        invariant forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+        invariant forall z: Int :: 0 <= z && z < length(a) ==> (0 <= loc(a,z).val && loc(a,z).val <= 2)
+        
+        invariant forall z: Int :: 0 <= z && z < lo ==> loc(a,z).val == 0
+        invariant forall z: Int :: lo <= z && z < mid ==> loc(a,z).val == 1
+        invariant forall z: Int :: hi+1 <= z && z < length(a) ==> loc(a,z).val == 2
+        
+        invariant MultiSet_Equal( MultiSet_FromSeq(a2s(a)), old(MultiSet_FromSeq(a2s(a))) )
+	{
+		if (loc(a,mid).val == 0)
+	    {                
+            xs := a2s(a)
+            swap(a, lo, mid)
+            ys := a2s(a)
+            zs := xs [mid := xs[lo]] [lo := xs[mid]]
+            assert forall z: Int :: z in [0..length(a)) ==> zs[z] == ys[z]
+            assert zs == ys
+
+            lo := lo + 1
+            mid := mid + 1
+        }
+	    elseif (loc(a,mid).val == 1) 
+        {
+			mid := mid + 1
+	    }
+        elseif (loc(a,mid).val == 2)
+        {
+            xs := a2s(a)
+		    swap(a, mid, hi)
+            ys := a2s(a)
+            zs := xs [hi := xs[mid]] [mid := xs[hi]]
+            assert forall z: Int :: z in [0..length(a)) ==> zs[z] == ys[z]
+            assert zs == ys
+
+            hi := hi - 1
+		}
+	}
+}
