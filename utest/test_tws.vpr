@@ -20,8 +20,9 @@ domain Array {
 }
 
 function a2s(a: Array): Seq[Int]
-  requires forall i: Int :: i in [0..length(a)) ==> acc(loc(a,i).val)
+  requires forall i: Int :: 0 <= i && i < length(a) ==> acc(loc(a,i).val)
   ensures |result| == length(a)
+  //ensures  forall i: Int :: { loc(a,i).val } { result[i] } 0 <= i && i < length(a) ==> result[i] == (loc(a,i).val ? 1 : 0)
   ensures  forall i: Int :: { loc(a,i).val } { result[i] } i in [0..length(a)) ==> result[i] == (loc(a,i).val ? 1 : 0)
 
 
@@ -69,6 +70,7 @@ method two_way_sort(a: Array)
       ys := a2s(a)
       zs := xs [j := xs[i]] [i := xs[j]]
       assert forall z: Int :: z in [0..length(a)) ==> zs[z] == ys[z]
+      //assert forall z: Int :: {ys[z]} 0 <= z && z < length(a) ==> zs[z] == ys[z]
       assert zs == ys
 
 
