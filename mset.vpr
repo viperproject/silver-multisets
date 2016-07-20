@@ -24,7 +24,7 @@ domain Math {
     }
 
     axiom math_min {
-        true 
+        true
         && ( forall a: Int, b: Int :: { Math_Min(a,b) } a <= b <==> Math_Min(a,b) == a )
         && ( forall a: Int, b: Int :: { Math_Min(a,b) } b <= a <==> Math_Min(a,b) == b )
         && ( forall a: Int, b: Int :: { Math_Min(a,b) } Math_Min(a,b) == a || Math_Min(a,b) == b )

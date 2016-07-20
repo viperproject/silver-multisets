@@ -6,22 +6,23 @@ field val: Int
 domain Array {
     function loc(a: Array, i: Int): Ref
     function length(a: Array): Int
+    function first(r: Ref): Array
+    function second(r: Ref): Int
 
     axiom array_length {
       forall a: Array :: { length(a) } length(a) >= 0
     }
 
-    /* Currently, injectivity is assumed automatically when inhaling permissions through quantifiers. 
-    axiom array_injectivity {
-      true  
-      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } 0 <= i && i < j && j < length(a) ==> loc(a,i) != loc(a,j) )
-      && ( forall a: Array, i: Int, j: Int :: { loc(a,i), loc(a,j) } loc(a,i) == loc(a,j) <==> i == j )
-    }*/
+    axiom all_diff {
+    forall a: Array, i: Int :: {loc(a, i)}
+        first(loc(a, i)) == a && second(loc(a, i)) == i
+    }
 }
 
 function a2s(a: Array): Seq[Int]
-  requires forall i: Int :: i in [0..length(a)) ==> acc(loc(a,i).val)
+  requires forall i: Int :: 0 <= i && i < length(a) ==> acc(loc(a,i).val)
   ensures |result| == length(a)
+  //ensures  forall i: Int :: { loc(a,i).val } { result[i] } 0 <= i && i < length(a) ==> result[i] == loc(a,i).val
   ensures  forall i: Int :: { loc(a,i).val } { result[i] } i in [0..length(a)) ==> result[i] == loc(a,i).val
 
 method swap(a: Array, i: Int, j: Int)
@@ -42,10 +43,10 @@ method swap(a: Array, i: Int, j: Int)
 
 method sort012(a: Array)
     requires length(a) > 0
-    requires forall z: Int :: z in [0..length(a)) ==> acc(loc(a,z).val)
-    requires forall z: Int :: 0 <= z && z < length(a) ==> (0 <= loc(a,z).val && loc(a,z).val <= 2)
+    requires forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+    requires forall z: Int :: {loc(a,z).val} 0 <= z && z < length(a) ==> (0 <= loc(a,z).val && loc(a,z).val <= 2)
     
-    ensures forall z: Int :: z in [0..length(a)) ==> acc(loc(a,z).val)
+    ensures forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
     ensures forall y: Int, z: Int :: 0 <= y && y < z && z < length(a) ==> loc(a,y).val <= loc(a,z).val
     
     ensures MultiSet_Equal( MultiSet_FromSeq(a2s(a)), old(MultiSet_FromSeq(a2s(a))) )
@@ -76,7 +77,9 @@ method sort012(a: Array)
             swap(a, lo, mid)
             ys := a2s(a)
             zs := xs [mid := xs[lo]] [lo := xs[mid]]
-            assert forall z: Int :: z in [0..length(a)) ==> zs[z] == ys[z]
+            assert forall z: Int :: {ys[z]} z in [0..length(a)) ==> zs[z] == ys[z]
+            //assert forall z: Int :: {ys[z]} 0 <= z && z < |ys| ==> zs[z] == ys[z]
+
             assert zs == ys
 
             lo := lo + 1
@@ -92,7 +95,8 @@ method sort012(a: Array)
 		    swap(a, mid, hi)
             ys := a2s(a)
             zs := xs [hi := xs[mid]] [mid := xs[hi]]
-            assert forall z: Int :: z in [0..length(a)) ==> zs[z] == ys[z]
+            assert forall z: Int :: {ys[z]} z in [0..length(a)) ==> zs[z] == ys[z]
+            //assert forall z: Int :: {ys[z]} 0 <= z && z < length(a) ==> zs[z] == ys[z]
             assert zs == ys
 
             hi := hi - 1
