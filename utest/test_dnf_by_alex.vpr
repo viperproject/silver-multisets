@@ -86,6 +86,6 @@ domain Array {
 }
 
 function a2s(a: Array): Seq[Int]
-  requires forall i: Int :: i in [0..length(a)) ==> acc(loc(a,i).val)
+  requires forall i: Int :: 0 <= i && i < length(a) ==> acc(loc(a,i).val)
   ensures |result| == length(a)
   ensures  forall i: Int :: { loc(a,i).val } { result[i] } i in [0..length(a)) ==> result[i] == loc(a,i).val

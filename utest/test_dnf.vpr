@@ -19,11 +19,17 @@ domain Array {
     }
 }
 
+method foo() {
+    assert false
+}
+
 function a2s(a: Array): Seq[Int]
-  requires forall i: Int :: 0 <= i && i < length(a) ==> acc(loc(a,i).val)
+  requires forall i: Int :: { loc(a,i).val } 0 <= i && i < length(a) ==> acc(loc(a,i).val)
   ensures |result| == length(a)
   //ensures  forall i: Int :: { loc(a,i).val } { result[i] } 0 <= i && i < length(a) ==> result[i] == loc(a,i).val
   ensures  forall i: Int :: { loc(a,i).val } { result[i] } i in [0..length(a)) ==> result[i] == loc(a,i).val
+  ensures forall x: Int :: { x in result } x in result ==> exists i:Int :: i in [0..length(a)) && loc(a,i).val == x
+  ensures |result| == length(a)
 
 method swap(a: Array, i: Int, j: Int)
     requires 0 <= i && i <= j && j < length(a) 
@@ -62,12 +68,12 @@ method sort012(a: Array)
 	while (mid <= hi)
         invariant 0 <= lo && lo <= mid && mid <= hi + 1 && hi < length(a)
         
-        invariant forall z: Int :: 0 <= z && z < length(a) ==> acc(loc(a,z).val)
-        invariant forall z: Int :: 0 <= z && z < length(a) ==> (0 <= loc(a,z).val && loc(a,z).val <= 2)
+        invariant forall z: Int :: { loc(a,z).val } 0 <= z && z < length(a) ==> acc(loc(a,z).val)
+        invariant forall z: Int :: { loc(a,z).val } 0 <= z && z < length(a) ==> (0 <= loc(a,z).val && loc(a,z).val <= 2)
         
-        invariant forall z: Int :: 0 <= z && z < lo ==> loc(a,z).val == 0
-        invariant forall z: Int :: lo <= z && z < mid ==> loc(a,z).val == 1
-        invariant forall z: Int :: hi+1 <= z && z < length(a) ==> loc(a,z).val == 2
+        invariant forall z: Int :: { loc(a,z).val } 0 <= z && z < lo ==> loc(a,z).val == 0
+        invariant forall z: Int :: { loc(a,z).val } lo <= z && z < mid ==> loc(a,z).val == 1
+        invariant forall z: Int :: { loc(a,z).val } hi+1 <= z && z < length(a) ==> loc(a,z).val == 2
         
         invariant MultiSet_Equal( MultiSet_FromSeq(a2s(a)), old(MultiSet_FromSeq(a2s(a))) )
 	{
@@ -77,9 +83,10 @@ method sort012(a: Array)
             swap(a, lo, mid)
             ys := a2s(a)
             zs := xs [mid := xs[lo]] [lo := xs[mid]]
-            assert forall z: Int :: {ys[z]} z in [0..length(a)) ==> zs[z] == ys[z]
-            //assert forall z: Int :: {ys[z]} 0 <= z && z < |ys| ==> zs[z] == ys[z]
-
+            //assert forall z: Int :: {ys[z]} z in [0..length(a)) ==> zs[z] == ys[z]
+            //assert |zs| == |ys|
+            
+            //TODO: understand what else is triggered by this axiom. 
             assert zs == ys
 
             lo := lo + 1
@@ -87,19 +94,22 @@ method sort012(a: Array)
         }
 	    elseif (loc(a,mid).val == 1) 
         {
+            assume false
 			mid := mid + 1
 	    }
         elseif (loc(a,mid).val == 2)
         {
+            assume false
             xs := a2s(a)
 		    swap(a, mid, hi)
             ys := a2s(a)
             zs := xs [hi := xs[mid]] [mid := xs[hi]]
-            assert forall z: Int :: {ys[z]} z in [0..length(a)) ==> zs[z] == ys[z]
+            //assert forall z: Int :: {ys[z]} z in [0..length(a)) ==> zs[z] == ys[z]
             //assert forall z: Int :: {ys[z]} 0 <= z && z < length(a) ==> zs[z] == ys[z]
-            assert zs == ys
+            //assert zs == ys
 
             hi := hi - 1
 		}
 	}
 }
+

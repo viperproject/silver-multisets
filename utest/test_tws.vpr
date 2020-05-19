@@ -94,3 +94,5 @@ method swap(a: Array, i: Int, j: Int)
 function lte(b1: Bool, b2: Bool): Bool {
   !b1 || b2
 }
+
+//@TIMING:{"total":6.561,"timings":[4,233,372,400,6348,6360,6578,6673]}

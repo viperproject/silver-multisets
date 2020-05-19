@@ -1,7 +1,7 @@
 /*
     This encoding is based on 
     the translation of Dafny's 
-    MultiSets encoding to Boogie.
+    MultiSets encoding from Boogie.
 
     Created on June 14th, 2016 
     (last modified on June 27th, 2016)
@@ -195,6 +195,8 @@ domain MultiSet {
                 )
     }
 
+
+
     //axiom ms_subset_
 
     axiom ms_equal {
@@ -207,7 +209,7 @@ domain MultiSet {
     axiom ms_equal_relation {
         forall msx: MultiSet, msy: MultiSet ::
             { MultiSet_Equal(msx, msy) }
-                MultiSet_Equal(msx, msy) ==> msx == msy
+                MultiSet_Equal(msx, msy) <==> msx == msy
     }
 
     //axiom ms_disjoint
@@ -442,6 +444,7 @@ axiom (forall<T> s: Seq T, i: int, v: Int, x: Int ::
      ==> MultiSet#FromSeq(Seq#Update(s, i, v))[x]
        == MultiSet#Union(MultiSet#Difference(MultiSet#FromSeq(s), MultiSet#Singleton(Seq#Index(s, i))), 
         MultiSet#Singleton(v))[x]);
+
 
 axiom (forall<T> s: Seq T, x: Int :: 
   { MultiSet#FromSeq(s)[x] } 
